@@ -124,28 +124,47 @@ class EuchreGame:
     def _play_one_trick(self):
         """One trick: each player plays in order (leader first). Returns winner seat index."""
         self.current_trick = []
+        trick_by_seat = [None] * NUM_PLAYERS
         order = [
             (self.leader_index + i) % NUM_PLAYERS
             for i in range(NUM_PLAYERS)
         ]
+        player_names = [p.name for p in self.players]
+
+        # Show empty table and user's hand at start of trick
+        self._clear_screen()
+        human_hand = list(self.players[0].hand) if self.players[0].hand else None
+        self.display.print_table(trick_by_seat, player_names, human_hand=human_hand)
+        print("")
+
         lead_card = None
         for seat in order:
             p = self.players[seat]
             print("{}'s turn...".format(p.name))
-            time.sleep(0.5)
+            time.sleep(0.3)
+            # Show table (user's hand only at start of trick; when it's human's turn, play_card will show hand and prompt)
+            self._clear_screen()
+            self.display.print_table(trick_by_seat, player_names, human_hand=None)
+            print("")
             card = p.play_card(lead_card, list(self.current_trick), self.trump)
             p.hand.remove(card)
             if lead_card is None:
                 lead_card = card
             self.current_trick.append(card)
-            print("{} throws:".format(p.name))
-            print(self.display.card_image(card))
+            trick_by_seat[seat] = card
+            # Redraw table with the new card in place
+            self._clear_screen()
+            self.display.print_table(trick_by_seat, player_names, human_hand=None)
             print("")
+            print("{} plays.".format(p.name))
+            time.sleep(0.5)
 
         win_offset = winner_of_trick(self.current_trick, self.trump)
         winner_seat = order[win_offset]
         self.trick_winners.append(winner_seat)
         self.leader_index = winner_seat
+        print("{} wins the trick.".format(self.players[winner_seat].name))
+        time.sleep(1.0)
         return winner_seat
 
     def play_phase(self):

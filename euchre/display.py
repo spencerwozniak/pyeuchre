@@ -19,6 +19,95 @@ BANNER = r"""
 """
 
 
+# Card dimensions for table layout
+_CARD_WIDTH = 11
+_CARD_HEIGHT = 9
+
+_EMPTY_SLOT_LINES = [
+    "┌─────────┐",
+    "│         │",
+    "│         │",
+    "│   ───   │",
+    "│         │",
+    "│         │",
+    "│         │",
+    "│         │",
+    "└─────────┘",
+]
+
+
+def _single_card_lines(card):
+    """Return 9 lines of 11 chars for one card, or placeholder if card is None."""
+    if card is None:
+        return list(_EMPTY_SLOT_LINES)
+    return card_image(card, return_string=False)
+
+
+def render_table(trick_by_seat, player_names, human_hand=None):
+    """
+    Render the table: Player 1 left, Player 2 top, Player 3 right, User (seat 0) bottom.
+    trick_by_seat[i] = card played by seat i (or None). player_names[i] = name for seat i.
+    human_hand = list of cards to show below table for the user (optional).
+    """
+    # Layout: 43 cols. Left card 0-10, center 16-26, right 32-42.
+    # Rows: 0=label P2, 1-9=P2 card; 10=label P1/P3, 11-19=P1 left, P3 right; 20=label user, 21-29=user card.
+    width = 43
+    height = 30
+    grid = [[" "] * width for _ in range(height)]
+
+    def write_block(start_row, start_col, lines):
+        for r, line in enumerate(lines):
+            for c, ch in enumerate(line):
+                if 0 <= start_row + r < height and 0 <= start_col + c < width:
+                    grid[start_row + r][start_col + c] = ch
+
+    def center_label(text, row):
+        # Center text in width
+        t = text[:width]
+        col = (width - len(t)) // 2
+        for i, ch in enumerate(t):
+            if 0 <= col + i < width:
+                grid[row][col + i] = ch
+
+    # Seat 2 = top, seat 1 = left, seat 3 = right, seat 0 = bottom
+    center_col = (width - _CARD_WIDTH) // 2  # 16
+
+    # Top: Player 2 (seat 2)
+    center_label(player_names[2], 0)
+    write_block(1, center_col, _single_card_lines(trick_by_seat[2]))
+
+    # Middle row: Player 1 (left), Player 3 (right) - labels on row 10
+    name1, name3 = player_names[1][:11], player_names[3][:11]
+    for j, ch in enumerate(name1):
+        if j < width:
+            grid[10][j] = ch
+    for j, ch in enumerate(name3):
+        col = width - len(name3) + j
+        if 0 <= col < width:
+            grid[10][col] = ch
+    write_block(11, 0, _single_card_lines(trick_by_seat[1]))
+    write_block(11, width - _CARD_WIDTH, _single_card_lines(trick_by_seat[3]))
+
+    # Bottom: User (seat 0)
+    center_label(player_names[0], 20)
+    write_block(21, center_col, _single_card_lines(trick_by_seat[0]))
+
+    lines_out = ["".join(row) for row in grid]
+
+    if human_hand:
+        lines_out.append("")
+        lines_out.append("Your hand:")
+        hand_str = card_image(*human_hand, return_string=True)
+        lines_out.append(hand_str)
+
+    return "\n".join(lines_out)
+
+
+def print_table(trick_by_seat, player_names, human_hand=None):
+    """Print the table view (see render_table)."""
+    print(render_table(trick_by_seat, player_names, human_hand))
+
+
 def card_image(*cards, return_string=True):
     """Render one or more cards as ASCII art. Each card has .suit and .rank."""
     lines = [[] for _ in range(9)]
